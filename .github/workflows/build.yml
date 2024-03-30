@@ -1,0 +1,54 @@
+name: Build
+on:
+  workflow_dispatch:
+
+jobs:
+  run:
+    permissions: write-all
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-java@v4
+        with:
+          distribution: "zulu"
+          java-version: "22"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: true
+
+      - name: Getting Tools
+        run: |
+          sudo apt install wget curl
+          wget https://github.com/ReVanced/revanced-cli/releases/download/v4.5.0/revanced-cli-4.5.0-all.jar
+          wget https://github.com/ReVanced/revanced-patches/releases/download/v4.4.0/revanced-patches-4.4.0.jar
+          wget https://github.com/ReVanced/revanced-integrations/releases/download/v1.5.0/revanced-integrations-1.5.0.apk
+          wget https://github.com/tanishqmanuja/apkmirror-downloader/releases/download/v1.0.4/apkmd
+          chmod 777 apkmd
+          ./apkmd apps.json
+
+      - name: Start building YT
+        run: |
+          java -jar revanced-cli-4.5.0-all.jar \
+            patch -b revanced-patches-4.4.0.jar \
+            -m revanced-integrations-1.5.0.apk \
+            --exclude "Announcements" \
+            --exclude "Downloads" \
+            -o yt-sw.apk ./downloads/yt.apk
+          
+      - name: Start building YTM
+        run: |
+          java -jar revanced-cli-4.5.0-all.jar \
+            patch -b revanced-patches-4.4.0.jar \
+            -m revanced-integrations-1.5.0.apk \
+            -o ytm-sw.apk ./downloads/ytm.apk
+          
+      - name: Upload APK to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./yt*.apk
+          release_name: YT Automated Build
+          file_glob: true
+          overwrite: true
