@@ -1,4 +1,4 @@
-name: Build
+name: YT Build
 on:
   workflow_dispatch:
 
