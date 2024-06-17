@@ -21,9 +21,9 @@ jobs:
       - name: Getting Tools
         run: |
           sudo apt install wget curl
-          wget https://github.com/ReVanced/revanced-cli/releases/download/v4.5.0/revanced-cli-4.6.0-dev.1-all.jar
-          wget https://github.com/ReVanced/revanced-patches/releases/download/v4.4.0/revanced-patches-4.10.0-dev.7.jar
-          wget https://github.com/ReVanced/revanced-integrations/releases/download/v1.5.0/revanced-integrations-1.11.0-dev.5.apk
+          wget https://github.com/ReVanced/revanced-cli/releases/download/v4.6.0-dev.1/revanced-cli-4.6.0-dev.1-all.jar
+          wget https://github.com/ReVanced/revanced-patches/releases/download/v4.10.0-dev.7/revanced-patches-4.10.0-dev.7.jar
+          wget https://github.com/ReVanced/revanced-integrations/releases/download/v1.11.0-dev.5/revanced-integrations-1.11.0-dev.5.apk
           wget https://github.com/ToothIsSweet/YT/raw/main/ytmg.apk
           wget https://github.com/tanishqmanuja/apkmirror-downloader/releases/download/v1.0.4/apkmd
           chmod 777 apkmd
