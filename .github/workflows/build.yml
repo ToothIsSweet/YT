@@ -31,7 +31,7 @@ jobs:
 
       - name: Start building YT
         run: |
-          java -jar revanced-cli-4.6.0-dev.1-all \
+          java -jar revanced-cli-4.6.0-dev.1-all.jar \
             patch -b revanced-patches-4.10.0-dev.7.jar \
             -m revanced-integrations-1.11.0-dev.5.apk \
             --exclude "Announcements" \
@@ -40,7 +40,7 @@ jobs:
           
       - name: Start building YTM
         run: |
-          java -jar revanced-cli-4.6.0-dev.1-all \
+          java -jar revanced-cli-4.6.0-dev.1-all.jar \
             patch -b revanced-patches-4.10.0-dev.7.jar \
             -m revanced-integrations-1.11.0-dev.5.apk \
             -o ytm-sw.apk ./downloads/ytm.apk
