@@ -7,12 +7,13 @@
         "name": "yt",
         "org": "google-inc",
         "repo": "youtube",
-        "version": "19.16.39"
+        "version": "19.46.42"
       },
       {
         "name": "ytm",
         "org": "google-inc",
-        "repo": "youtube-music"
+        "repo": "youtube-music",
+        "version": "7.29.52"
       }
     ]
   }
