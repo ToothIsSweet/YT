@@ -21,9 +21,8 @@ jobs:
       - name: Getting Tools
         run: |
           sudo apt install wget curl
-          wget https://github.com/ReVanced/revanced-cli/releases/download/v4.6.0-dev.1/revanced-cli-4.6.0-dev.1-all.jar
-          wget https://github.com/ReVanced/revanced-patches/releases/download/v4.10.0-dev.7/revanced-patches-4.10.0-dev.7.jar
-          wget https://github.com/ReVanced/revanced-integrations/releases/download/v1.11.0-dev.5/revanced-integrations-1.11.0-dev.5.apk
+          wget https://github.com/ReVanced/revanced-cli/releases/download/v5.0.0/revanced-cli-5.0.0-all.jar
+          wget https://github.com/ReVanced/revanced-patches/releases/download/v5.6.0-dev.3/patches-5.6.0-dev.3.rvp
           wget https://github.com/ToothIsSweet/YT/raw/main/ytmg.apk
           wget https://github.com/tanishqmanuja/apkmirror-downloader/releases/download/v1.0.4/apkmd
           chmod 777 apkmd
@@ -31,19 +30,17 @@ jobs:
 
       - name: Start building YT
         run: |
-          java -jar revanced-cli-4.6.0-dev.1-all.jar \
-            patch -b revanced-patches-4.10.0-dev.7.jar \
-            -m revanced-integrations-1.11.0-dev.5.apk \
-            --exclude "Announcements" \
-            --exclude "Downloads" \
-            -o yt-sw.apk ./downloads/yt.apk
+          java -jar revanced-cli-5.0.0-all.jar \
+            patch -p patches-5.6.0-dev.3.rvp \
+            -d "Announcements" \
+            -d "Downloads" \
+            ./downloads/yt.apk
           
       - name: Start building YTM
         run: |
-          java -jar revanced-cli-4.6.0-dev.1-all.jar \
-            patch -b revanced-patches-4.10.0-dev.7.jar \
-            -m revanced-integrations-1.11.0-dev.5.apk \
-            -o ytm-sw.apk ./downloads/ytm.apk
+          java -jar revanced-cli-5.0.0-all.jar \
+            patch -p patches-5.6.0-dev.3.rvp \
+            ./downloads/ytm.apk
           
       - name: Upload APK to release
         uses: svenstaro/upload-release-action@v2
