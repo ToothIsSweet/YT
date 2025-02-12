@@ -33,6 +33,8 @@ jobs:
           PATCHES_LATEST=$(curl -s https://api.github.com/repos/ReVanced/revanced-patches/releases/latest | jq -r '.assets[] | select(.name | endswith(".rvp")) | .browser_download_url')
           wget -O rev-patches.rvp "$PATCHES_LATEST"
 
+          wget -O ytmg.apk https://github.com/ToothIsSweet/YT/raw/main/ytmg.apk
+
           # Download latest apkmd
           wget -O apkmd https://github.com/tanishqmanuja/apkmirror-downloader/releases/download/v2.0.8/apkmd
           chmod +x apkmd
@@ -106,10 +108,7 @@ jobs:
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: |
-            ./yt-sw.apk
-            ./ytm-sw.apk
-            ./ytmg.apk
+          file: ./yt*.apk
           release_name: "YT Automatic Build (Date: $DATE)"
           file_glob: true
           overwrite: true
