@@ -94,6 +94,7 @@ jobs:
 
           # Rename output
           mv yt-patched.apk yt-sw.apk
+          rm -f yt.apk
 
       - name: Patch YouTube Music APK
         run: |
@@ -103,6 +104,7 @@ jobs:
 
           # Rename output
           mv ytm-patched.apk ytm-sw.apk
+          rm -f ytm.apk
 
       - name: Upload APK to release
         uses: svenstaro/upload-release-action@v2
