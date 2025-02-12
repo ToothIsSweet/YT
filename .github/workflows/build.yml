@@ -103,12 +103,10 @@ jobs:
           mv ytm-patched.apk ytm-sw.apk
 
       - name: Upload APK to release
-        env:
-          DATE: $(date +"%Y-%m-%d")
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ./yt-sw.apk
-          release_name: "YT Automatic Build (Date: $DATE)"
+          release_name: "YT Automatic Build"
           file_glob: true
           overwrite: true
