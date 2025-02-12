@@ -38,7 +38,7 @@ jobs:
           chmod +x apkmd
 
       - name: Get Latest YouTube & YT Music Versions
-	run: |
+        run: |
           JSON_DATA=$(curl -s "https://api.revanced.app/v4/patches/list")
 
           # Extract latest compatible YouTube version
@@ -61,16 +61,19 @@ jobs:
                 "name": "yt",
                 "org": "google-inc",
                 "repo": "youtube",
-				"outFile": "yt",
+                "outFile": "yt",
                 "version": "$YT_VERSION"
-              },
-              {
-                "name": "ytm",
-                "org": "google-inc",
-				"outFile": "ytm",
-                "repo": "youtube-music"
-                $( [[ "$YTM_VERSION" != "null" && -n "$YTM_VERSION" ]] && echo ", \"version\": \"$YTM_VERSION\"" )
               }
+              $( if [[ "$YTM_VERSION" != "null" && -n "$YTM_VERSION" ]]; then
+                echo ",
+              {
+                \"name\": \"ytm\",
+                \"org\": \"google-inc\",
+                \"repo\": \"youtube-music\",
+                \"outFile\": \"ytm\",
+                \"version\": \"$YTM_VERSION\"
+              }"
+              fi )
             ]
           }
           EOF
