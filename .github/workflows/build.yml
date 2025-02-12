@@ -61,11 +61,13 @@ jobs:
                 "name": "yt",
                 "org": "google-inc",
                 "repo": "youtube",
+				"outFile": "yt",
                 "version": "$YT_VERSION"
               },
               {
                 "name": "ytm",
                 "org": "google-inc",
+				"outFile": "ytm",
                 "repo": "youtube-music"
                 $( [[ "$YTM_VERSION" != "null" && -n "$YTM_VERSION" ]] && echo ", \"version\": \"$YTM_VERSION\"" )
               }
@@ -83,7 +85,7 @@ jobs:
             patch -p rev-patches.rvp \
             -d "Announcements" \
             -d "Downloads" \
-            ./downloads/yt.apk
+            ./yt.apk
 
           # Rename output
           mv yt-patched.apk yt-sw.apk
@@ -92,7 +94,7 @@ jobs:
         run: |
           java -jar rev-cli.jar \
             patch -p rev-patches.rvp \
-            ./downloads/ytm.apk
+            ./ytm.apk
 
           # Rename output
           mv ytm-patched.apk ytm-sw.apk
