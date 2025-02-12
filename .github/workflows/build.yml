@@ -63,13 +63,22 @@ jobs:
           echo "YT_VERSION=$YT_VERSION" >> $GITHUB_ENV
           echo "YTM_VERSION=$YTM_VERSION" >> $GITHUB_ENV
 
-      - name: Download YouTube & YT Music APKs
+      - name: Update apps.json & Download YouTube & YT Music APKs
         run: |
-          # Update apps.json with latest versions
-          jq --arg yt_ver "$YT_VERSION" --arg ytm_ver "$YTM_VERSION" '.apps |= map(if .name == "yt" then .version = $yt_ver elif .name == "ytm" then .version = $ytm_ver else . end)' apps.json > apps_new.json && mv apps_new.json apps.json
+          # Modify apps.json with correct names and versions
+          jq --arg yt_ver "$YT_VERSION" --arg ytm_ver "$YTM_VERSION" \
+             '.apps |= map(if .name == "yt" then .version = $yt_ver | .outFile = "yt.apk" 
+                           elif .name == "ytm" then .version = $ytm_ver | .outFile = "ytm.apk" 
+                           else . end)' apps.json > apps_new.json && mv apps_new.json apps.json
 
           # Fetch APKs using apkmd
           ./apkmd apps.json
+
+      - name: Verify & Rename Downloaded Files
+        run: |
+          ls -lah downloads
+          mv downloads/*.apk downloads/yt.apk || echo "YouTube APK not found!"
+          mv downloads/*.apk downloads/ytm.apk || echo "YouTube Music APK not found!"
 
       - name: Patch YouTube APK
         run: |
