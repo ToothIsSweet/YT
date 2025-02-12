@@ -69,6 +69,15 @@
                     const downloadButton = document.createElement("a");
                     downloadButton.setAttribute("href", asset.browser_download_url);
                     downloadButton.setAttribute("download", asset.name);
+					const assets = latestRelease.assets;
+
+					// Find the latest updated_at date among all assets
+					const latestUpdatedAt = assets.reduce((latest, asset) => {
+						return new Date(asset.updated_at) > new Date(latest) ? asset.updated_at : latest;
+					}, assets[0].updated_at);
+
+					// Convert to readable format (YYYY-MM-DD)
+					const releaseDate = new Date(latestUpdatedAt).toISOString().split("T")[0];
                     downloadButton.textContent = `Download ${asset.name} (${releaseDate})`;
                     downloadButton.classList.add("downloadButton");
                     downloadButtonsDiv.appendChild(downloadButton);
