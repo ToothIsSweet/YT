@@ -38,7 +38,7 @@ jobs:
           chmod +x apkmd
 
       - name: Get Latest YouTube & YT Music Versions
-        run: |
+	run: |
           JSON_DATA=$(curl -s "https://api.revanced.app/v4/patches/list")
 
           # Extract latest compatible YouTube version
