@@ -25,13 +25,13 @@ jobs:
         run: |
           sudo apt install wget curl jq -y
 
-          # Fetch latest versions
-          CLI_VERSION=$(curl -s https://api.github.com/repos/ReVanced/revanced-cli/releases/latest | jq -r '.tag_name' | grep -oE '[0-9]+(\.[0-9]+)*')
-          PATCHES_VERSION=$(curl -s https://api.github.com/repos/ReVanced/revanced-patches/releases/latest | jq -r '.tag_name' | grep -oE '[0-9]+(\.[0-9]+)*')
-
-          # Download CLI and patches
-          wget -O rev-cli.jar "https://github.com/ReVanced/revanced-cli/releases/download/v${CLI_VERSION}/revanced-cli-${CLI_VERSION}-all.jar"
-          wget -O rev-patches.rvp "https://github.com/ReVanced/revanced-patches/releases/download/v${PATCHES_VERSION}/patches-${PATCHES_VERSION}.rvp"
+          # Get latest revanced-cli release
+          CLI_LATEST=$(curl -s https://api.github.com/repos/ReVanced/revanced-cli/releases/latest | jq -r '.assets[] | select(.name | endswith(".jar")) | .browser_download_url')
+          wget -O rev-cli.jar "$CLI_LATEST"
+          
+          # Get latest revanced-patches release
+          PATCHES_LATEST=$(curl -s https://api.github.com/repos/ReVanced/revanced-patches/releases/latest | jq -r '.assets[] | select(.name | endswith(".rvp")) | .browser_download_url')
+          wget -O rev-patches.rvp "$PATCHES_LATEST"
 
           # Download latest apkmd
           wget -O apkmd https://github.com/tanishqmanuja/apkmirror-downloader/releases/download/v2.0.8/apkmd
@@ -39,46 +39,43 @@ jobs:
 
       - name: Get Latest YouTube & YT Music Versions
         run: |
-          # Fetch JSON data from ReVanced API
-          JSON_DATA=$(curl -s https://api.revanced.app/v4/patches/list)
+          JSON_DATA=$(curl -s "https://api.revanced.app/v4/patches/list")
 
           # Extract latest compatible YouTube version
-          YT_VERSION=$(echo "$JSON_DATA" | jq -r '.[0].compatiblePackages["com.google.android.youtube"] | last')
-          
-          # Extract latest compatible YT Music version (may be null)
-          YTM_VERSION=$(echo "$JSON_DATA" | jq -r '.[0].compatiblePackages["com.google.android.apps.youtube.music"] | last')
+          YT_VERSION=$(echo "$JSON_DATA" | jq -r '[.[] | select(.compatiblePackages."com.google.android.youtube") | .compatiblePackages."com.google.android.youtube"[]] | max')
 
-          # Fallback: If YTM_VERSION is null, use APKMirror
-          if [[ "$YTM_VERSION" == "null" || -z "$YTM_VERSION" ]]; then
-            echo "YT Music version not found! Fetching from APKMirror..."
-            ./apkmd apps.json
-            YTM_VERSION=$(jq -r '.apps[] | select(.name=="ytm") | .version' apps.json)
-          fi
+          # Extract latest compatible YouTube Music version
+          YTM_VERSION=$(echo "$JSON_DATA" | jq -r '[.[] | select(.compatiblePackages."com.google.android.apps.youtube.music") | .compatiblePackages."com.google.android.apps.youtube.music"[]] | max')
 
-          # Debug output
-          echo "Latest YouTube Version: $YT_VERSION"
-          echo "Latest YouTube Music Version: $YTM_VERSION"
+          echo "Latest supported YouTube version: $YT_VERSION"
+          echo "Latest supported YouTube Music version: $YTM_VERSION"
 
-          # Save versions for next steps
-          echo "YT_VERSION=$YT_VERSION" >> $GITHUB_ENV
-          echo "YTM_VERSION=$YTM_VERSION" >> $GITHUB_ENV
+          # Generate dynamic apps.json
+          cat <<EOF > apps.json
+          {
+            "options": {
+              "arch": "arm64-v8a"
+            },
+            "apps": [
+              {
+                "name": "yt",
+                "org": "google-inc",
+                "repo": "youtube",
+                "version": "$YT_VERSION"
+              },
+              {
+                "name": "ytm",
+                "org": "google-inc",
+                "repo": "youtube-music"
+                $( [[ "$YTM_VERSION" != "null" && -n "$YTM_VERSION" ]] && echo ", \"version\": \"$YTM_VERSION\"" )
+              }
+            ]
+          }
+          EOF
 
-      - name: Update apps.json & Download YouTube & YT Music APKs
+      - name: Download YouTube APKs
         run: |
-          # Modify apps.json with correct names and versions
-          jq --arg yt_ver "$YT_VERSION" --arg ytm_ver "$YTM_VERSION" \
-             '.apps |= map(if .name == "yt" then .version = $yt_ver | .outFile = "yt.apk" 
-                           elif .name == "ytm" then .version = $ytm_ver | .outFile = "ytm.apk" 
-                           else . end)' apps.json > apps_new.json && mv apps_new.json apps.json
-
-          # Fetch APKs using apkmd
           ./apkmd apps.json
-
-      - name: Verify & Rename Downloaded Files
-        run: |
-          ls -lah downloads
-          mv downloads/*.apk downloads/yt.apk || echo "YouTube APK not found!"
-          mv downloads/*.apk downloads/ytm.apk || echo "YouTube Music APK not found!"
 
       - name: Patch YouTube APK
         run: |
