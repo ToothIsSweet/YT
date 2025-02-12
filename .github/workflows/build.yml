@@ -2,132 +2,93 @@ name: YT Build
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 0 * * 1"  # Runs every Monday at 00:00 UTC
+    - cron: "0 0 * * 1"  # Runs every Monday at midnight UTC
 
 jobs:
   run:
     permissions: write-all
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-java@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
         with:
           distribution: "zulu"
           java-version: "22"
 
-      - name: Checkout
+      - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: true
 
-      - name: Getting Tools
+      - name: Get Latest Tools
         run: |
-          sudo apt install wget curl jq
+          sudo apt install wget curl jq -y
 
-          # Fetch latest CLI & Patches version numbers
+          # Fetch latest versions
           CLI_VERSION=$(curl -s https://api.github.com/repos/ReVanced/revanced-cli/releases/latest | jq -r '.tag_name' | grep -oE '[0-9]+(\.[0-9]+)*')
           PATCHES_VERSION=$(curl -s https://api.github.com/repos/ReVanced/revanced-patches/releases/latest | jq -r '.tag_name' | grep -oE '[0-9]+(\.[0-9]+)*')
 
-          # Construct filenames
-          CLI_NAME="revanced-cli-${CLI_VERSION}-all.jar"
-          PATCHES_NAME="patches-${PATCHES_VERSION}.rvp"
+          # Download CLI and patches
+          wget -O rev-cli.jar "https://github.com/ReVanced/revanced-cli/releases/download/v${CLI_VERSION}/revanced-cli-${CLI_VERSION}-all.jar"
+          wget -O rev-patches.rvp "https://github.com/ReVanced/revanced-patches/releases/download/v${PATCHES_VERSION}/patches-${PATCHES_VERSION}.rvp"
 
-          # Download latest revanced-cli JAR
-          CLI_URL="https://github.com/ReVanced/revanced-cli/releases/download/v${CLI_VERSION}/revanced-cli-${CLI_VERSION}-all.jar"
-          wget -O "$CLI_NAME" "$CLI_URL"
-
-          # Verify JAR Download
-          if [ ! -s "$CLI_NAME" ]; then
-            echo "Error: Failed to download revanced-cli JAR!"
-            exit 1
-          fi
-
-          # Download latest revanced-patches rvp file
-          PATCHES_URL="https://github.com/ReVanced/revanced-patches/releases/download/v${PATCHES_VERSION}/patches-${PATCHES_VERSION}.rvp"
-          wget -O "$PATCHES_NAME" "$PATCHES_URL"
-
-          # Verify Patches File
-          if [ ! -s "$PATCHES_NAME" ]; then
-            echo "Error: Failed to download revanced-patches file!"
-            exit 1
-          fi
-
-          # Download latest apkmd (v2.0.8)
+          # Download latest apkmd
           wget -O apkmd https://github.com/tanishqmanuja/apkmirror-downloader/releases/download/v2.0.8/apkmd
-          chmod 777 apkmd
+          chmod +x apkmd
 
-      - name: Fetch Latest Supported Versions
+      - name: Get Latest YouTube & YT Music Versions
         run: |
-          PATCHES_JSON=$(curl -s "https://api.revanced.app/v4/patches/list")
+          # Fetch JSON data from ReVanced API
+          JSON_DATA=$(curl -s https://api.revanced.app/v4/patches/list)
 
           # Extract latest compatible YouTube version
-          YT_VERSION=$(echo "$PATCHES_JSON" | jq -r '[.[] | select(.compatiblePackages."com.google.android.youtube") | .compatiblePackages."com.google.android.youtube"[]] | max')
+          YT_VERSION=$(echo "$JSON_DATA" | jq -r '.[0].compatiblePackages["com.google.android.youtube"] | last')
+          
+          # Extract latest compatible YT Music version (may be null)
+          YTM_VERSION=$(echo "$JSON_DATA" | jq -r '.[0].compatiblePackages["com.google.android.apps.youtube.music"] | last')
 
-          # Extract latest compatible YouTube Music version (handle null case)
-          YTM_VERSION=$(echo "$PATCHES_JSON" | jq -r '[.[] | select(.compatiblePackages."com.google.android.apps.youtube.music") | .compatiblePackages."com.google.android.apps.youtube.music"[]] | max')
-
-          if [[ "$YTM_VERSION" == "null" ]]; then
-            echo "No compatible YT Music version found in Revanced API. Fetching latest from APKMirror..."
-            
-            # Run apkmd to get latest YouTube Music version
-            ./apkmd -j -s "YouTube Music" > apkmd_output.json
-            YTM_VERSION=$(jq -r '.apps[0].version' apkmd_output.json)
+          # Fallback: If YTM_VERSION is null, use APKMirror
+          if [[ "$YTM_VERSION" == "null" || -z "$YTM_VERSION" ]]; then
+            echo "YT Music version not found! Fetching from APKMirror..."
+            ./apkmd apps.json
+            YTM_VERSION=$(jq -r '.apps[] | select(.name=="ytm") | .version' apps.json)
           fi
 
-          echo "Latest supported YouTube version: $YT_VERSION"
-          echo "Latest supported YouTube Music version: $YTM_VERSION"
+          # Debug output
+          echo "Latest YouTube Version: $YT_VERSION"
+          echo "Latest YouTube Music Version: $YTM_VERSION"
 
-          # Generate dynamic apps.json
-          cat <<EOF > apps.json
-          {
-            "options": {
-              "arch": "arm64-v8a"
-            },
-            "apps": [
-              {
-                "name": "yt",
-                "org": "google-inc",
-                "repo": "youtube",
-                "version": "$YT_VERSION"
-              },
-              {
-                "name": "ytm",
-                "org": "google-inc",
-                "repo": "youtube-music",
-                "version": "$YTM_VERSION"
-              }
-            ]
-          }
-          EOF
+          # Save versions for next steps
+          echo "YT_VERSION=$YT_VERSION" >> $GITHUB_ENV
+          echo "YTM_VERSION=$YTM_VERSION" >> $GITHUB_ENV
 
-      - name: Download YouTube APKs
+      - name: Download YouTube & YT Music APKs
         run: |
+          # Update apps.json with latest versions
+          jq --arg yt_ver "$YT_VERSION" --arg ytm_ver "$YTM_VERSION" '.apps |= map(if .name == "yt" then .version = $yt_ver elif .name == "ytm" then .version = $ytm_ver else . end)' apps.json > apps_new.json && mv apps_new.json apps.json
+
+          # Fetch APKs using apkmd
           ./apkmd apps.json
 
-      - name: Start building YT
+      - name: Patch YouTube APK
         run: |
-          echo "Using CLI: $CLI_NAME"
-          ls -lah  # List files to debug
-
-          if [ ! -f "$CLI_NAME" ]; then
-            echo "Error: CLI JAR file not found!"
-            exit 1
-          fi
-
-          java -jar "$CLI_NAME" \
-            patch -p "$PATCHES_NAME" \
+          java -jar rev-cli.jar \
+            patch -p rev-patches.rvp \
             -d "Announcements" \
             -d "Downloads" \
             ./downloads/yt.apk
 
+          # Rename output
           mv yt-patched.apk yt-sw.apk
 
-      - name: Start building YTM
+      - name: Patch YouTube Music APK
         run: |
-          java -jar "$CLI_NAME" \
-            patch -p "$PATCHES_NAME" \
+          java -jar rev-cli.jar \
+            patch -p rev-patches.rvp \
             ./downloads/ytm.apk
 
+          # Rename output
           mv ytm-patched.apk ytm-sw.apk
 
       - name: Upload APK to release
