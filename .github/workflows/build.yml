@@ -1,6 +1,8 @@
 name: YT Build
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * 1"  # Runs every Monday at 00:00 UTC
 
 jobs:
   run:
@@ -20,33 +22,96 @@ jobs:
 
       - name: Getting Tools
         run: |
-          sudo apt install wget curl
-          wget https://github.com/ReVanced/revanced-cli/releases/download/v5.0.0/revanced-cli-5.0.0-all.jar
-          wget https://github.com/ReVanced/revanced-patches/releases/download/v5.6.0-dev.3/patches-5.6.0-dev.3.rvp
-          wget https://github.com/ToothIsSweet/YT/raw/main/ytmg.apk
-          wget https://github.com/tanishqmanuja/apkmirror-downloader/releases/download/v1.0.4/apkmd
+          sudo apt install wget curl jq
+
+          # Get the latest revanced-cli jar
+          CLI_URL=$(curl -s https://api.github.com/repos/ReVanced/revanced-cli/releases/latest | jq -r '.assets[] | select(.name | endswith(".jar")) | .browser_download_url')
+          CLI_NAME=$(basename "$CLI_URL")
+          wget -O "$CLI_NAME" "$CLI_URL"
+
+          # Get the latest revanced-patches rvp file
+          PATCHES_URL=$(curl -s https://api.github.com/repos/ReVanced/revanced-patches/releases/latest | jq -r '.assets[] | select(.name | endswith(".rvp")) | .browser_download_url')
+          PATCHES_NAME=$(basename "$PATCHES_URL")
+          wget -O "$PATCHES_NAME" "$PATCHES_URL"
+
+          # Download latest apkmd (v2.0.8)
+          wget -O apkmd https://github.com/tanishqmanuja/apkmirror-downloader/releases/download/v2.0.8/apkmd
           chmod 777 apkmd
+
+      - name: Fetch Latest Supported Versions
+        run: |
+          PATCHES_JSON=$(curl -s "https://api.revanced.app/v4/patches/list")
+
+          # Extract latest compatible YouTube version
+          YT_VERSION=$(echo "$PATCHES_JSON" | jq -r '[.[] | select(.compatiblePackages."com.google.android.youtube") | .compatiblePackages."com.google.android.youtube"[]] | max')
+
+          # Extract latest compatible YouTube Music version (handle null case)
+          YTM_VERSION=$(echo "$PATCHES_JSON" | jq -r '[.[] | select(.compatiblePackages."com.google.android.apps.youtube.music") | .compatiblePackages."com.google.android.apps.youtube.music"[]] | max')
+
+          if [[ "$YTM_VERSION" == "null" ]]; then
+            echo "No compatible YT Music version found in Revanced API. Fetching latest from APKMirror..."
+            
+            # Run apkmd to get latest YouTube Music version
+            ./apkmd -j -s "YouTube Music" > apkmd_output.json
+            YTM_VERSION=$(jq -r '.apps[0].version' apkmd_output.json)
+          fi
+
+          echo "Latest supported YouTube version: $YT_VERSION"
+          echo "Latest supported YouTube Music version: $YTM_VERSION"
+
+          # Generate dynamic apps.json
+          cat <<EOF > apps.json
+          {
+            "options": {
+              "arch": "arm64-v8a"
+            },
+            "apps": [
+              {
+                "name": "yt",
+                "org": "google-inc",
+                "repo": "youtube",
+                "version": "$YT_VERSION"
+              },
+              {
+                "name": "ytm",
+                "org": "google-inc",
+                "repo": "youtube-music",
+                "version": "$YTM_VERSION"
+              }
+            ]
+          }
+          EOF
+
+      - name: Download YouTube APKs
+        run: |
           ./apkmd apps.json
 
       - name: Start building YT
         run: |
-          java -jar revanced-cli-5.0.0-all.jar \
-            patch -p patches-5.6.0-dev.3.rvp \
+          java -jar "$CLI_NAME" \
+            patch -p "$PATCHES_NAME" \
             -d "Announcements" \
             -d "Downloads" \
             ./downloads/yt.apk
-          
+
+          mv yt-patched.apk yt-sw.apk
+
       - name: Start building YTM
         run: |
-          java -jar revanced-cli-5.0.0-all.jar \
-            patch -p patches-5.6.0-dev.3.rvp \
+          java -jar "$CLI_NAME" \
+            patch -p "$PATCHES_NAME" \
             ./downloads/ytm.apk
-          
+
+          mv ytm-patched.apk ytm-sw.apk
+
       - name: Upload APK to release
+        env:
+          DATE: $(date +"%Y-%m-%d")
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./yt*.apk
-          release_name: YT Automated Build
+          file: ./yt-sw.apk
+          release_name: "YT Automatic Build (Date: $DATE)"
           file_glob: true
           overwrite: true
+
