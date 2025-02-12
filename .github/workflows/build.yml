@@ -29,10 +29,22 @@ jobs:
           CLI_NAME=$(basename "$CLI_URL")
           wget -O "$CLI_NAME" "$CLI_URL"
 
+          # Verify JAR Download
+          if [ ! -s "$CLI_NAME" ]; then
+            echo "Error: Failed to download revanced-cli JAR!"
+            exit 1
+          fi
+
           # Get the latest revanced-patches rvp file
           PATCHES_URL=$(curl -s https://api.github.com/repos/ReVanced/revanced-patches/releases/latest | jq -r '.assets[] | select(.name | endswith(".rvp")) | .browser_download_url')
           PATCHES_NAME=$(basename "$PATCHES_URL")
           wget -O "$PATCHES_NAME" "$PATCHES_URL"
+
+          # Verify Patches File
+          if [ ! -s "$PATCHES_NAME" ]; then
+            echo "Error: Failed to download revanced-patches file!"
+            exit 1
+          fi
 
           # Download latest apkmd (v2.0.8)
           wget -O apkmd https://github.com/tanishqmanuja/apkmirror-downloader/releases/download/v2.0.8/apkmd
@@ -88,6 +100,14 @@ jobs:
 
       - name: Start building YT
         run: |
+          echo "Using CLI: $CLI_NAME"
+          ls -lah  # List files to debug
+
+          if [ ! -f "$CLI_NAME" ]; then
+            echo "Error: CLI JAR file not found!"
+            exit 1
+          fi
+
           java -jar "$CLI_NAME" \
             patch -p "$PATCHES_NAME" \
             -d "Announcements" \
