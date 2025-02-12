@@ -24,9 +24,16 @@ jobs:
         run: |
           sudo apt install wget curl jq
 
-          # Get the latest revanced-cli jar
-          CLI_URL=$(curl -s https://api.github.com/repos/ReVanced/revanced-cli/releases/latest | jq -r '.assets[] | select(.name | endswith(".jar")) | .browser_download_url')
-          CLI_NAME=$(basename "$CLI_URL")
+          # Fetch latest CLI & Patches version numbers
+          CLI_VERSION=$(curl -s https://api.github.com/repos/ReVanced/revanced-cli/releases/latest | jq -r '.tag_name' | grep -oE '[0-9]+(\.[0-9]+)*')
+          PATCHES_VERSION=$(curl -s https://api.github.com/repos/ReVanced/revanced-patches/releases/latest | jq -r '.tag_name' | grep -oE '[0-9]+(\.[0-9]+)*')
+
+          # Construct filenames
+          CLI_NAME="revanced-cli-${CLI_VERSION}-all.jar"
+          PATCHES_NAME="patches-${PATCHES_VERSION}.rvp"
+
+          # Download latest revanced-cli JAR
+          CLI_URL="https://github.com/ReVanced/revanced-cli/releases/download/v${CLI_VERSION}/revanced-cli-${CLI_VERSION}-all.jar"
           wget -O "$CLI_NAME" "$CLI_URL"
 
           # Verify JAR Download
@@ -35,9 +42,8 @@ jobs:
             exit 1
           fi
 
-          # Get the latest revanced-patches rvp file
-          PATCHES_URL=$(curl -s https://api.github.com/repos/ReVanced/revanced-patches/releases/latest | jq -r '.assets[] | select(.name | endswith(".rvp")) | .browser_download_url')
-          PATCHES_NAME=$(basename "$PATCHES_URL")
+          # Download latest revanced-patches rvp file
+          PATCHES_URL="https://github.com/ReVanced/revanced-patches/releases/download/v${PATCHES_VERSION}/patches-${PATCHES_VERSION}.rvp"
           wget -O "$PATCHES_NAME" "$PATCHES_URL"
 
           # Verify Patches File
@@ -134,4 +140,3 @@ jobs:
           release_name: "YT Automatic Build (Date: $DATE)"
           file_glob: true
           overwrite: true
-
