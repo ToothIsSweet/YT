@@ -111,6 +111,6 @@ jobs:
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ./yt*.apk
-          release_name: "YT Automatic Build (Date: $DATE)"
+          release_name: "YT Automatic Build"
           file_glob: true
           overwrite: true
